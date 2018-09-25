@@ -12,4 +12,6 @@ echo -n "SSH_ADDR=" >> "$TEMP"
 echo -n "$SSH_ADDR" >> "$TEMP"
 echo >> "$TEMP"
 
-echo $TEMP
+docker run --rm giomasce/remote-docker /root/run.sh
+
+rm "$TEMP"
