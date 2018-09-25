@@ -9,9 +9,8 @@ echo -n "SSH_KNOWN_HOSTS=" >> "$TEMP"
 cat known_hosts | base64 -w 0 >> "$TEMP"
 echo >> "$TEMP"
 echo -n "SSH_ADDR=" >> "$TEMP"
-echo -n "$SSH_ADDR" >> "$TEMP"
-echo >> "$TEMP"
+cat ssh_addr >> "$TEMP"
 
-docker run --rm giomasce/remote-docker /root/run.sh
+docker run --rm --env-file "$TEMP" giomasce/remote-docker /root/run.sh
 
 rm "$TEMP"
