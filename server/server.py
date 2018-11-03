@@ -103,7 +103,7 @@ def stream_script(fout, fin, data, job_id):
     fout.write(b'cat <<end_of_file | base64 -d > data\n')
     fout.write(base64.b64encode(data))
     fout.write(b'\nend_of_file\n')
-    fout.write(b'cat {} > id\n'.format(id))
+    fout.write(b'cat ' + str(id).encode('utf-8') + b' > id\n')
     fout.write(b'./exec\n')
 
 def client_main(argv):
