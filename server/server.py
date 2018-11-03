@@ -15,7 +15,7 @@ from sqlalchemy.schema import ForeignKey
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
-db = create_engine('sqlite:///db.sqlite', echo=True)
+db = create_engine('sqlite:///db.sqlite', echo=False)
 Session = sessionmaker(db)
 Base = declarative_base(db)
 
