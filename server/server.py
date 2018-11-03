@@ -4,6 +4,9 @@
 import sys
 import datetime
 import os
+import base64
+import time
+import shutil
 
 from sqlalchemy import create_engine, Column, Integer, Float, Boolean, String, LargeBinary, DateTime, Interval
 from sqlalchemy.ext.declarative import declarative_base
@@ -52,6 +55,10 @@ def log(msg):
     with open('log.txt', 'a') as flog:
         flog.write(str(datetime.datetime.now()) + ': ' + msg + '\n')
 
+def log_error(msg):
+    with open('log.txt', 'a') as flog:
+        flog.write(str(datetime.datetime.now()) + ': ERROR! ' + msg + '\n')
+
 def timeout_jobs(session):
     now = datetime.datetime.now()
     for job in session.query(QueuedJob).filter(QueuedJob.timeouts_on <= now):
@@ -67,8 +74,11 @@ def dequeue_job(session, origin):
         job.assigned_to = origin
         job.assigned_on = now
         job.timeouts_on = now + datetime.timedelta(hours=6)
-        log('log {} is assigned to {}'.format(job.id, assigned_on))
+        log('log {} is assigned to {}'.format(job.id, job.assigned_on))
     return job
+
+def find_job(session, job_id):
+    return session.query(QueuedJob).filter(QueuedJob.id == job_id).first()
 
 def give_back_job(session, job):
     job.assigned_to = None
@@ -80,6 +90,16 @@ def finish_job(session, job):
     session.delete(job)
     log('job {} has finished successfully and is deleted'.format(job.id))
 
+def stream_script(fout, fin, data, job_id):
+    fout.write(b'cat <<end_of_file | base64 -d | tar xz')
+    base64.encode(fin, fout)
+    fout.write(b'end_of_file\n')
+    fout.write(b'cat <<end_of_file | base64 -d > data\n')
+    fout.write(base64.b64encode(data))
+    fout.write(b'\nend_of_file\n')
+    fout.write(b'cat {} > id\n'.format(id))
+    fout.write(b'./exec\n')
+
 def client_main(argv):
     try:
         origin = argv[0]
@@ -89,20 +109,60 @@ def client_main(argv):
         fail("Could not obtain origin, please fix configuration")
 
     try:
-        command = os.environ["SSH_ORIGINAL_COMMAND"]
+        command = os.environ["SSH_ORIGINAL_COMMAND"].split(' ')
     except KeyError:
         fail("Please provide a client command")
 
-    if command == 'request-work':
+    if command[0] == 'request-work':
         session = Session()
         timeout_jobs(session)
         session.commit()
 
-    elif command == 'give-back-work':
-        pass
+        while True:
+            job = dequeue_job(session, origin)
+            if job is not None:
+                try:
+                    with open('job_types/{}.tar.gz'.format(job.type.name), 'rb') as fin:
+                        stream_script(sys.stdout.buffer, fin, job.data, job.id)
+                except FileNotFoundError:
+                    log_error('Script for job type "{}" does not exist'.format(job.type.name))
+                    fail("Internal error")
+                session.commit()
+                return
+            session.commit()
+            time.sleep(60)
 
-    elif command == 'report-work':
-        pass
+    elif command[0] == 'give-back-work':
+        fail("Not implemented")
+
+    elif command[0] == 'report-work':
+        try:
+            job_id = int(command[1])
+        except IndexError:
+            fail("Please specify id")
+        except ValueError:
+            fail("Please specify valid id")
+
+        session = Session()
+        job = find_job(session, job_id)
+        if job is None:
+            fail("Invalid job id")
+        if job.assigned_to != origin:
+            fail("Job assigned to another worker")
+        # Terminate transaction while we save reported data, so that
+        # the database is not blocked
+        session.rollback()
+
+        with open('reports/report_{}.tar.gz', 'wb') as fout:
+            shutil.copyfileobj(sys.stdin.buffer, fout)
+
+        job = find_job(session, job_id)
+        if job is None:
+            fail("Invalid job id")
+        if job.assigned_to != origin:
+            fail("Job assigned to another worker")
+        finish_job(job)
+        session.commit()
 
     else:
         fail("Comman unknown")
