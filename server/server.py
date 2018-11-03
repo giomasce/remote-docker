@@ -33,6 +33,7 @@ class JobType(Base):
 
 class QueuedJob(Base):
     __tablename__ = 'queued_jobs'
+    __table_args__ = {'sqlite_autoincrement': True}
 
     id = Column(Integer, primary_key=True)
     type_id = Column(Integer, ForeignKey(JobType.id, onupdate="CASCADE", ondelete="CASCADE"), nullable=False)
@@ -97,13 +98,13 @@ def finish_job(session, job):
     log('job {} has finished successfully and is deleted'.format(job.id))
 
 def stream_script(fout, fin, data, job_id):
-    fout.write(b'cat <<end_of_file | base64 -d | tar xz')
+    fout.write(b'cat <<end_of_file | base64 -d | tar xz\n')
     base64.encode(fin, fout)
     fout.write(b'end_of_file\n')
     fout.write(b'cat <<end_of_file | base64 -d > data\n')
     fout.write(base64.b64encode(data))
     fout.write(b'\nend_of_file\n')
-    fout.write(b'cat ' + str(id).encode('utf-8') + b' > id\n')
+    fout.write(b'echo ' + str(job_id).encode('utf-8') + b' > id\n')
     fout.write(b'./exec\n')
 
 def client_main(argv):
@@ -159,7 +160,7 @@ def client_main(argv):
         # the database is not blocked
         session.rollback()
 
-        with open('reports/report_{}.tar.gz', 'wb') as fout:
+        with open('reports/report_{}.tar.gz'.format(job_id), 'wb') as fout:
             shutil.copyfileobj(sys.stdin.buffer, fout)
 
         job = find_job(session, job_id)
@@ -167,7 +168,7 @@ def client_main(argv):
             fail("Invalid job id")
         if job.assigned_to != origin:
             fail("Job assigned to another worker")
-        finish_job(job)
+        finish_job(session, job)
         session.commit()
 
     else:
