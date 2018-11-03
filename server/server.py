@@ -214,6 +214,11 @@ def server_main(argv):
         fail("Command unknown")
 
 def main():
+    # Change dir to script dir, see https://stackoverflow.com/a/1432949/807307
+    abspath = os.path.abspath(__file__)
+    dname = os.path.dirname(abspath)
+    os.chdir(dname)
+
     try:
         command = sys.argv[1]
     except IndexError:
