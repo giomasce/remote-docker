@@ -11,6 +11,6 @@ echo >> "$TEMP"
 echo -n "SSH_ADDR=" >> "$TEMP"
 cat ssh_addr >> "$TEMP"
 
-docker run --rm --env-file "$TEMP" giomasce/remote-docker /root/run.sh
+docker run -m 8g --rm --env-file "$TEMP" giomasce/remote-docker /root/run.sh
 
 rm "$TEMP"
