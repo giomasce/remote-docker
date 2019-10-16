@@ -80,8 +80,8 @@ def dequeue_job(session, origin):
     if job is not None:
         job.assigned_to = origin
         job.assigned_on = now
-        job.timeouts_on = now + datetime.timedelta(hours=6)
-        log('log {} is assigned to {}'.format(job.id, job.assigned_on))
+        job.timeouts_on = now + datetime.timedelta(hours=24)
+        log('log {} is assigned to {}'.format(job.id, job.assigned_to))
     return job
 
 def find_job(session, job_id):
@@ -154,8 +154,8 @@ def client_main(argv):
         job = find_job(session, job_id)
         if job is None:
             fail("Invalid job id")
-        if job.assigned_to != origin:
-            fail("Job assigned to another worker")
+        #if job.assigned_to != origin:
+        #    fail("Job assigned to another worker")
         # Terminate transaction while we save reported data, so that
         # the database is not blocked
         session.rollback()
@@ -166,8 +166,8 @@ def client_main(argv):
         job = find_job(session, job_id)
         if job is None:
             fail("Invalid job id")
-        if job.assigned_to != origin:
-            fail("Job assigned to another worker")
+        #if job.assigned_to != origin:
+        #    fail("Job assigned to another worker")
         finish_job(session, job)
         session.commit()
 
