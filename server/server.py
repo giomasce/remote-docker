@@ -126,7 +126,7 @@ def client_main(argv):
         session.commit()
 
         attempts = 0
-        while attempts < 10:
+        while attempts < 100:
             job = dequeue_job(session, origin)
             if job is not None:
                 try:
@@ -138,7 +138,7 @@ def client_main(argv):
                 session.commit()
                 return
             session.commit()
-            time.sleep(60)
+            time.sleep(5)
             attempts += 1
         fail("No available jobs")
 
