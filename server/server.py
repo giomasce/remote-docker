@@ -125,7 +125,8 @@ def client_main(argv):
         timeout_jobs(session)
         session.commit()
 
-        while True:
+        attempts = 0
+        while attempts < 10:
             job = dequeue_job(session, origin)
             if job is not None:
                 try:
@@ -138,6 +139,8 @@ def client_main(argv):
                 return
             session.commit()
             time.sleep(60)
+            attempts += 1
+        fail("No available jobs")
 
     elif command[0] == 'give-back-work':
         fail("Not implemented")
